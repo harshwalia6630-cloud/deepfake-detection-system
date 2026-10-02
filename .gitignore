@@ -12,3 +12,6 @@ models/*.h5
 
 *.part
 *.mp4
+node_modules/
+tests/fixtures/yunet_frames.json
+web/_test/

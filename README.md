@@ -2,7 +2,9 @@
 
 A CNN pipeline that flags manipulated (deepfake) faces in videos. It finds the face in each frame with OpenCV, classifies the face crop with a fine-tuned EfficientNetB0, and combines the frame scores into one verdict for the video. The full pipeline runs at **~47 FPS** on a laptop RTX 4050, so it can work in near real time on video files or a webcam.
 
-**Tech stack:** Python · TensorFlow / Keras · OpenCV · scikit-learn
+**Tech stack:** Python · TensorFlow / Keras · OpenCV · scikit-learn · ONNX Runtime Web
+
+There is also a **website** ([`web/`](web)) where you can upload a video or use your webcam. It runs the same detector **entirely in the browser**, so no video is uploaded anywhere. See [Website](#website-vercel).
 
 ## Results
 
@@ -71,6 +73,27 @@ Frames analysed:  449/449 with a face
 Throughput:       27.7 FPS     # lower here because it is also encoding the annotated video
 ```
 
+## Website (Vercel)
+
+[`web/`](web) is a static site, so no server is needed. It exports the trained models to ONNX and runs them with [ONNX Runtime Web](https://onnxruntime.ai/docs/tutorials/web/) (WebAssembly):
+
+| Component | Browser implementation | Verified against |
+|---|---|---|
+| Classifier | EfficientNetB0 exported with `tf2onnx` ([`scripts/export_web_model.py`](scripts/export_web_model.py)), 16 MB | Keras: max output difference **6.9e-6** on 512 test faces, 100% decision agreement |
+| Face detector | YuNet ONNX plus OpenCV's post-processing re-implemented in [`web/js/yunet.js`](web/js/yunet.js) (anchor decoding, scoring, NMS) | `cv2.FaceDetectorYN`: max box difference **3.8e-5 px** (numpy reference, [`scripts/yunet_reference.py`](scripts/yunet_reference.py)). JS port matches the reference to **5.6e-6** ([`tests/web_parity.mjs`](tests/web_parity.mjs)) |
+| Full pipeline | [`web/js/detector.js`](web/js/detector.js): same 480 px detection, 1.3× crop, 224 px input, tuned thresholds | 6 held-out test videos (3 real, 3 fake): all classified correctly. Mean scores were within 0.025 of the Python pipeline |
+
+Uploaded videos are sampled at 32 frames. The page shows a per-frame probability timeline, the face crops the model saw, and a video-level verdict. Webcam mode runs live with smoothing. On a laptop CPU, one thread of WebAssembly takes about 80 ms per frame. `web/vercel.json` sets the COOP/COEP headers that enable multithreaded WASM on Vercel.
+
+```bash
+python scripts/export_web_model.py      # Keras -> ONNX + parity check
+python scripts/yunet_reference.py       # YuNet decoding vs OpenCV (+ local fixtures)
+npm install && npm run test:web         # JS YuNet port vs Python reference
+python -m http.server 8200 --directory web
+```
+
+**Deploy:** import the repo in Vercel, set **Root Directory** to `web`, set Framework Preset to *Other* with no build command, and click Deploy.
+
 ## Reproducing the results
 
 ```bash
@@ -100,6 +123,7 @@ The download script streams only the requested folders out of the 18 GB archive 
 
 ```
 ├── detect.py                    # CLI: run detection on a video or webcam
+├── web/                         # static website: ONNX models run in the browser (Vercel)
 ├── src/deepfake_detector/
 │   ├── env.py                   # Windows CUDA DLL setup before importing TensorFlow
 │   ├── faces.py                 # YuNet face detection, cropping, frame sampling

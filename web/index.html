@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Deepfake Detector · CNN video analysis in your browser</title>
+<meta name="description" content="Upload a video or use your webcam: a CNN trained on FaceForensics++ flags manipulated faces frame by frame, running entirely in your browser.">
+<meta property="og:title" content="Deepfake Detection System">
+<meta property="og:description" content="EfficientNetB0 + YuNet deepfake detector, 98.2% video-level accuracy on FaceForensics++, running in your browser.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%237c3aed'/><circle cx='16' cy='14' r='6' fill='none' stroke='white' stroke-width='2.5'/><path d='M8 26c2-4 5-6 8-6s6 2 8 6' fill='none' stroke='white' stroke-width='2.5'/></svg>">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top"><span class="logo" aria-hidden="true"></span>Deepfake Detector</a>
+    <nav>
+      <a href="#how">How it works</a>
+      <a href="#results">Results</a>
+      <a class="gh" href="https://github.com/harshwalia6630-cloud/deepfake-detection-system" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero wrap">
+    <p class="eyebrow">Computer vision · CNN · TensorFlow</p>
+    <h1>Is that face real?<br>Check a video frame by frame.</h1>
+    <p class="lede">An EfficientNetB0 classifier fine-tuned on 23,999 face crops from FaceForensics++ looks for the blending artefacts that face-swap deepfakes leave behind.
+      Face detection and classification run <strong>entirely in your browser</strong>, so your video never leaves your device.</p>
+    <ul class="stats">
+      <li><b>98.2%</b><span>video-level accuracy</span></li>
+      <li><b>0.997</b><span>ROC-AUC</span></li>
+      <li><b>96.3%</b><span>frame-level accuracy</span></li>
+      <li><b>47 FPS</b><span>on a laptop GPU</span></li>
+    </ul>
+  </section>
+
+  <section class="wrap demo" aria-label="Demo">
+    <div class="card demo-card">
+      <div class="demo-head">
+        <div class="tabs" role="tablist">
+          <button class="tab active" role="tab" aria-selected="true" data-tab="upload">Upload video</button>
+          <button class="tab" role="tab" aria-selected="false" data-tab="webcam">Webcam (live)</button>
+        </div>
+        <p class="muted small" id="status">Loading models…</p>
+      </div>
+      <div class="progress" id="load-progress"><div></div></div>
+
+      <div class="pane" id="pane-upload">
+        <label class="drop" id="drop">
+          <input type="file" id="file" accept="video/*" hidden>
+          <span class="drop-icon" aria-hidden="true"></span>
+          <b>Drop a video here or click to choose</b>
+          <span class="muted small">MP4, WebM or MOV, ideally one clearly visible face. Processed locally.</span>
+        </label>
+        <div class="analysis" id="analysis" hidden>
+          <div class="player">
+            <video id="video" muted playsinline preload="auto"></video>
+            <canvas id="overlay"></canvas>
+          </div>
+          <div class="side">
+            <div class="verdict" id="verdict">
+              <span class="verdict-label" id="verdict-label">Analysing…</span>
+              <span class="verdict-sub" id="verdict-sub">0 / 0 frames</span>
+              <div class="progress inline" id="analysis-progress"><div></div></div>
+            </div>
+            <h3>Fake probability per frame</h3>
+            <svg id="timeline" class="timeline" viewBox="0 0 300 110" preserveAspectRatio="none" role="img" aria-label="Fake probability over time"></svg>
+            <div class="legend small muted"><span>start</span><span id="threshold-note"></span><span>end</span></div>
+            <button class="ghost" id="another" type="button">Analyse another video</button>
+          </div>
+        </div>
+        <div id="faces-wrap" hidden>
+          <h3>Faces the model looked at</h3>
+          <div class="faces" id="faces"></div>
+        </div>
+      </div>
+
+      <div class="pane" id="pane-webcam" hidden>
+        <div class="webcam">
+          <div class="player">
+            <video id="cam" muted playsinline></video>
+            <canvas id="cam-overlay"></canvas>
+            <div class="cam-placeholder" id="cam-placeholder">
+              <p>Your camera feed is analysed live on this device. Nothing is uploaded.</p>
+              <button class="primary" id="cam-start" type="button" disabled>Start webcam</button>
+            </div>
+          </div>
+          <div class="side">
+            <div class="verdict" id="cam-verdict">
+              <span class="verdict-label" id="cam-label">–</span>
+              <span class="verdict-sub" id="cam-sub">Start the webcam to begin</span>
+            </div>
+            <dl class="kv">
+              <dt>Throughput</dt><dd id="cam-fps">–</dd>
+              <dt>Per-frame latency</dt><dd id="cam-ms">–</dd>
+              <dt>Runtime</dt><dd id="cam-runtime">–</dd>
+            </dl>
+            <button class="ghost" id="cam-stop" type="button" disabled>Stop</button>
+            <p class="muted small">Your own face should read REAL. The model was trained on one deepfake method, so treat any result as a demo, not proof.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how" class="wrap section">
+    <h2 class="section-title">How it works</h2>
+    <ol class="steps">
+      <li class="card"><span class="num">1</span><h3>Sample frames</h3><p>Up to 32 evenly spaced frames are taken from the video, or every frame from the webcam.</p></li>
+      <li class="card"><span class="num">2</span><h3>Find the face</h3><p>OpenCV's YuNet detector finds the largest face. Its post-processing was re-implemented in JavaScript and matches OpenCV to within 6×10⁻⁶ px.</p></li>
+      <li class="card"><span class="num">3</span><h3>Classify the crop</h3><p>A 1.3× square crop goes to EfficientNetB0, fine-tuned in two phases and exported to ONNX. Outputs match Keras to within 7×10⁻⁶.</p></li>
+      <li class="card"><span class="num">4</span><h3>Decide</h3><p>Frame scores are averaged. The video and frame thresholds were tuned on validation data, which cut false positives by 18.8%.</p></li>
+    </ol>
+  </section>
+
+  <section id="results" class="wrap section">
+    <h2 class="section-title">Results</h2>
+    <div class="grid-2">
+      <div class="card">
+        <h3>FaceForensics++ test split (unseen identities)</h3>
+        <table>
+          <thead><tr><th>Metric</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>Video-level accuracy (280 videos)</td><td><b>98.2%</b></td></tr>
+            <tr><td>Video-level ROC-AUC</td><td>0.997</td></tr>
+            <tr><td>Frame-level accuracy (3,360 faces)</td><td>96.3%</td></tr>
+            <tr><td>False positives after threshold tuning</td><td>−18.8%</td></tr>
+            <tr><td>End-to-end speed, RTX 4050 laptop GPU</td><td>46.9 FPS</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <h3>Limitations</h3>
+        <ul class="ticks warn-list">
+          <li>Trained on <b>one manipulation method</b> (FaceForensics++ "Deepfakes", c23). Newer generators, such as diffusion-based face swaps, may not be detected.</li>
+          <li>In-browser speed depends on your CPU. WebAssembly is much slower than the GPU numbers above.</li>
+          <li>Needs a reasonably large, frontal face. Profile views and heavy blur reduce reliability.</li>
+          <li>A research demo, not a forensic tool.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap footer">
+  <p>Built by Harshvardhan Singh Ahluwalia · Python, TensorFlow, OpenCV, ONNX Runtime Web · <a href="https://github.com/harshwalia6630-cloud/deepfake-detection-system" target="_blank" rel="noopener">Source code</a></p>
+</footer>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

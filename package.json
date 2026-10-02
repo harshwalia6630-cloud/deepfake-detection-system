@@ -1,0 +1,12 @@
+{
+  "name": "deepfake-detection-web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:web": "node tests/web_parity.mjs",
+    "serve": "python -m http.server 8200 --directory web"
+  },
+  "devDependencies": {
+    "onnxruntime-node": "1.30.0"
+  }
+}
