@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+
+# datasets and generated face crops are large and licensed separately
+data/raw/
+data/faces/
+
+# only the final trained weights are tracked (~17 MB)
+models/*.h5
+!models/deepfake_effnetb0.weights.h5
+
+*.part
+*.mp4

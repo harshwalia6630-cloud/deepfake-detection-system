@@ -1,0 +1,12 @@
+{
+  "videos": 20,
+  "frames_processed": 6000,
+  "mean_fps": 46.9,
+  "min_fps": 32.0,
+  "video_accuracy_on_sample": 1.0,
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 4050 Laptop GPU",
+    "cpu": "Intel64 Family 6 Model 154 Stepping 3, GenuineIntel",
+    "tensorflow": "2.10.1"
+  }
+}

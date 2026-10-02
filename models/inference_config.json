@@ -1,0 +1,6 @@
+{
+  "frame_threshold": 0.6041,
+  "video_threshold": 0.4479,
+  "aggregation": "mean",
+  "image_size": 224
+}
