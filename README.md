@@ -4,6 +4,8 @@ A CNN pipeline that flags manipulated (deepfake) faces in videos. It finds the f
 
 **Tech stack:** Python · TensorFlow / Keras · OpenCV · scikit-learn · ONNX Runtime Web
 
+**Live demo: [harsh-deepfake-detector.vercel.app](https://harsh-deepfake-detector.vercel.app)**. Upload a video or use your webcam.
+
 There is also a **website** ([`web/`](web)) where you can upload a video or use your webcam. It runs the same detector **entirely in the browser**, so no video is uploaded anywhere. See [Website](#website-vercel).
 
 ## Results
