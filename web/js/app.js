@@ -100,8 +100,8 @@ async function analyzeFile(file) {
   let totalMs = 0;
   for (let i = 0; i < FRAMES; i++) {
     const t = dur * (0.02 + 0.96 * (i / (FRAMES - 1)));
+    // no requestAnimationFrame here: it is paused in background tabs, and the frame is ready after "seeked"
     try { await seek(video, t); } catch { points.push(null); continue; }
-    await nextFrame();
     const r = await det.analyzeFrame(video, w, h);
     totalMs += r.ms;
     points.push(r.prob);
@@ -199,7 +199,11 @@ drop.classList.add("disabled");
 (async () => {
   const bar = $("load-progress").firstElementChild;
   try {
-    det = await BrowserDetector.load("model/", p => { bar.style.width = `${p * 100}%`; $("status").textContent = `Downloading model… ${(p * 100).toFixed(0)}%`; });
+    det = await BrowserDetector.load("model/", p => {
+      if (p === null) { $("status").textContent = "Downloading model (16 MB)…"; return; }
+      bar.style.width = `${p * 100}%`;
+      $("status").textContent = `Downloading model… ${(p * 100).toFixed(0)}%`;
+    });
     // warm-up so the first real frame isn't slow
     const warm = new OffscreenCanvas(320, 240);
     warm.getContext("2d").fillRect(0, 0, 320, 240);

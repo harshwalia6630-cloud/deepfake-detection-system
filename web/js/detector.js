@@ -1,10 +1,11 @@
 // In-browser version of src/deepfake_detector/detector.py:
 //   frame -> downscale to 480px -> YuNet -> largest face -> 1.3x square crop -> 224x224 -> EfficientNetB0 (ONNX)
 
-import * as ort from "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/ort.min.mjs";
+// onnxruntime-web 1.30.0 is self-hosted: threaded WASM spawns workers, which browsers only allow from the same origin
+import * as ort from "../vendor/ort/ort.wasm.min.mjs";
 import { detectFaces, largestFace } from "./yunet.js";
 
-ort.env.wasm.wasmPaths = "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/";
+ort.env.wasm.wasmPaths = new URL("../vendor/ort/", import.meta.url).href;
 // multithreaded WASM needs cross-origin isolation (COOP/COEP headers, set in vercel.json)
 ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 4) : 1;
 
@@ -12,7 +13,10 @@ async function fetchWithProgress(url, onProgress) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(`${url}: HTTP ${res.status}`);
   const total = Number(res.headers.get("content-length")) || 0;
-  if (!res.body || !total) return new Uint8Array(await res.arrayBuffer());
+  if (!res.body || !total) {            // compressed responses often omit content-length
+    onProgress?.(null);
+    return new Uint8Array(await res.arrayBuffer());
+  }
   const reader = res.body.getReader();
   const buf = new Uint8Array(total);
   let loaded = 0;

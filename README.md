@@ -75,7 +75,7 @@ Throughput:       27.7 FPS     # lower here because it is also encoding the anno
 
 ## Website (Vercel)
 
-[`web/`](web) is a static site, so no server is needed. It exports the trained models to ONNX and runs them with [ONNX Runtime Web](https://onnxruntime.ai/docs/tutorials/web/) (WebAssembly):
+[`web/`](web) is a static site, so no server is needed. It exports the trained models to ONNX and runs them with [ONNX Runtime Web](https://onnxruntime.ai/docs/tutorials/web/) (WebAssembly). The runtime is self-hosted in `web/vendor/ort` because threaded WASM workers must come from the same origin:
 
 | Component | Browser implementation | Verified against |
 |---|---|---|
@@ -89,7 +89,7 @@ Uploaded videos are sampled at 32 frames. The page shows a per-frame probability
 python scripts/export_web_model.py      # Keras -> ONNX + parity check
 python scripts/yunet_reference.py       # YuNet decoding vs OpenCV (+ local fixtures)
 npm install && npm run test:web         # JS YuNet port vs Python reference
-python -m http.server 8200 --directory web
+python scripts/serve_web.py 8200        # static server with the same COOP/COEP headers as Vercel
 ```
 
 **Deploy:** import the repo in Vercel, set **Root Directory** to `web`, set Framework Preset to *Other* with no build command, and click Deploy.
